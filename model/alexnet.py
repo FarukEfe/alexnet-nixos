@@ -28,6 +28,9 @@ import torch.cuda as cuda
 import torch as torch
 import math, numpy as np
 
+device0 = torch.device('cuda:0' if torch.cuda.is_available() and torch.cuda.device_count() >=2 else 'cpu')
+device1 = torch.device('cuda:1' if torch.cuda.is_available() and torch.cuda.device_count() >=2 else 'cpu')
+
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, pooling=False, lrn=False):
         super(ConvLayer, self).__init__()
@@ -50,23 +53,20 @@ class ConvLayer(nn.Module):
 class ConvNet(nn.Module):
 
     def __init__(self, input_size=(3, 224, 224)):
-        
+
         super(ConvNet, self).__init__()
         
         if cuda.is_available() and cuda.device_count() >= 2:
-            # Train in 2 GPUs
-            self.device0 = cuda.device(0)
-            self.device1 = cuda.device(1)
             # CNN Split to 2 GPUs
-            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=0, pooling=True, lrn=True).to(self.device0)
-            self.conv2d1 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(self.device0)
-            self.conv2d2 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(self.device1)
-            self.conv3d1 = ConvLayer(256, 192, kernel_size=3, stride=1, padding=1).to(self.device0)
-            self.conv3d2 = ConvLayer(256, 192, kernel_size=3, stride=1, padding=1).to(self.device1)
-            self.conv4d1 = ConvLayer(192, 192, kernel_size=3, stride=1, padding=1).to(self.device0)
-            self.conv4d2 = ConvLayer(192, 192, kernel_size=3, stride=1, padding=1).to(self.device1)
-            self.conv5d1 = ConvLayer(192, 128, kernel_size=3, stride=1, padding=1, pooling=True).to(self.device0)
-            self.conv5d2 = ConvLayer(192, 128, kernel_size=3, stride=1, padding=1, pooling=True).to(self.device1)
+            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=0, pooling=True, lrn=True).to(device0)
+            self.conv2d1 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(device0)
+            self.conv2d2 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(device1)
+            self.conv3d1 = ConvLayer(256, 192, kernel_size=3, stride=1, padding=1).to(device0)
+            self.conv3d2 = ConvLayer(256, 192, kernel_size=3, stride=1, padding=1).to(device1)
+            self.conv4d1 = ConvLayer(192, 192, kernel_size=3, stride=1, padding=1).to(device0)
+            self.conv4d2 = ConvLayer(192, 192, kernel_size=3, stride=1, padding=1).to(device1)
+            self.conv5d1 = ConvLayer(192, 128, kernel_size=3, stride=1, padding=1, pooling=True).to(device0)
+            self.conv5d2 = ConvLayer(192, 128, kernel_size=3, stride=1, padding=1, pooling=True).to(device1)
         else:
             # CPU Architecture
             self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=0, pooling=True, lrn=True)
@@ -76,17 +76,17 @@ class ConvNet(nn.Module):
             self.conv5 = ConvLayer(384, 256, kernel_size=3, stride=1, padding=1, pooling=True)
 
     def forward(self, x):
-        if hasattr(self, 'device0') and hasattr(self, 'device1'):
+        if hasattr(self, 'conv2d1') and hasattr(self, 'conv2d2'):
             # Forward pass for 2 GPU architecture
             # Conv1
-            x = x.to(self.device0)
+            x = x.to(device0)
             x = self.conv1(x)
             x0, x1 = torch.split(x, 48, dim=1)  # Split feature maps for 2 GPUs
             # Conv2
-            x1 = x1.to(self.device1)
+            x1 = x1.to(device1)
             x0, x1 = self.conv2d1(x0), self.conv2d2(x1)
             # Conv3 (cross-GPU catenation)
-            x0, x1 = torch.cat([x0,x1.to(self.device0)], dim=1), torch.cat([x0.to(self.device1),x1], dim=1)
+            x0, x1 = torch.cat([x0,x1.to(device0)], dim=1), torch.cat([x0.to(device1),x1], dim=1)
             x0, x1 = self.conv3d1(x0), self.conv3d2(x1)
             # Conv4
             x0, x1 = self.conv4d1(x0), self.conv4d2(x1)
@@ -105,28 +105,26 @@ class FFN(nn.Module):
 
     def __init__(self, input_size, hidden_size, output_size, dropout_prob=0.5):
         super(FFN, self).__init__()
-        if cuda.is_available() and cuda.device_count() >= 2:
-            self.device0 = cuda.device(0)
-            self.device1 = cuda.device(1)
+        if torch.cuda.is_available() and torch.cuda.device_count() >= 2:
             # Dense 1
-            self.fc1d1 = nn.Linear(input_size, hidden_size//2).to(self.device0)
-            self.fc1d2 = nn.Linear(input_size, hidden_size//2).to(self.device1)
+            self.fc1d1 = nn.Linear(input_size, hidden_size//2).to(device0)
+            self.fc1d2 = nn.Linear(input_size, hidden_size//2).to(device1)
             # ReLU and Droupout 1
-            self.relu1d1 = nn.ReLU().to(self.device0)
-            self.relu1d2 = nn.ReLU().to(self.device1)
-            self.dropout1d1 = nn.Dropout(p=dropout_prob).to(self.device0)
-            self.dropout1d2 = nn.Dropout(p=dropout_prob).to(self.device1)
+            self.relu1d1 = nn.ReLU().to(device0)
+            self.relu1d2 = nn.ReLU().to(device1)
+            self.dropout1d1 = nn.Dropout(p=dropout_prob).to(device0)
+            self.dropout1d2 = nn.Dropout(p=dropout_prob).to(device1)
             # Dense 2
-            self.fc2d1 = nn.Linear(hidden_size, hidden_size//2).to(self.device0)
-            self.fc2d2 = nn.Linear(hidden_size, hidden_size//2).to(self.device1)
+            self.fc2d1 = nn.Linear(hidden_size, hidden_size//2).to(device0)
+            self.fc2d2 = nn.Linear(hidden_size, hidden_size//2).to(device1)
             # ReLU and Dropout 2
-            self.relu2d1 = nn.ReLU().to(self.device0)
-            self.relu2d2 = nn.ReLU().to(self.device1)
-            self.dropout2d1 = nn.Dropout(p=dropout_prob).to(self.device0)
-            self.dropout2d2 = nn.Dropout(p=dropout_prob).to(self.device1)
+            self.relu2d1 = nn.ReLU().to(device0)
+            self.relu2d2 = nn.ReLU().to(device1)
+            self.dropout2d1 = nn.Dropout(p=dropout_prob).to(device0)
+            self.dropout2d2 = nn.Dropout(p=dropout_prob).to(device1)
             # Dense 3 and Softmax (on device0)
-            self.fc3 = nn.Linear(hidden_size, output_size).to(self.device0)
-            self.softmax = nn.Softmax(dim=1).to(self.device0)
+            self.fc3 = nn.Linear(hidden_size, output_size).to(device0)
+            self.softmax = nn.Softmax(dim=1).to(device0)
         else:
             # Dense 1
             self.fc1 = nn.Linear(input_size, hidden_size)
@@ -141,23 +139,23 @@ class FFN(nn.Module):
             self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        if hasattr(self, 'device0') and hasattr(self, 'device1'):
+        if hasattr(self, 'fc1d1') and hasattr(self, 'fc1d2'):
             # Forward pass for 2 GPU architecture
             x0, x1 = x
             # Dense 1
-            x0, x1 = torch.cat([x0, x1.to(self.device0)], dim=1), torch.cat([x0.to(self.device1), x1], dim=1)
+            x0, x1 = torch.cat([x0, x1.to(device0)], dim=1), torch.cat([x0.to(device1), x1], dim=1)
             x0, x1 = self.fc1d1(x0), self.fc1d2(x1)
             # ReLU and Dropout 1
             x0, x1 = self.relu1d1(x0), self.relu1d2(x1)
             x0, x1 = self.dropout1d1(x0), self.dropout1d2(x1)
             # Dense 2
-            x0, x1 = torch.cat([x0, x1.to(self.device0)], dim=1), torch.cat([x0.to(self.device1), x1], dim=1)
+            x0, x1 = torch.cat([x0, x1.to(device0)], dim=1), torch.cat([x0.to(device1), x1], dim=1)
             x0, x1 = self.fc2d1(x0), self.fc2d2(x1)
             # ReLU and Dropout 2
             x0, x1 = self.relu2d1(x0), self.relu2d2(x1)
             x0, x1 = self.dropout2d1(x0), self.dropout2d2(x1)
             # Dense 3 and Softmax (on device0)
-            x0 = torch.cat([x0, x1.to(self.device0)], dim=1)
+            x0 = torch.cat([x0, x1.to(device0)], dim=1)
             x0 = self.fc3(x0)
             x0 = self.softmax(x0)
             return x0
