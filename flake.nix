@@ -13,6 +13,8 @@
         
         # Python environment with all dependencies
         pythonEnv = pkgs.python311.withPackages (ps: with ps; [
+          pip
+          virtualenv
           torch
           torchvision
           numpy
@@ -20,7 +22,6 @@
           pillow
           tqdm
           tensorboard
-          scikit-learn
         ]);
       in
       {
@@ -33,19 +34,20 @@
           ];
 
           shellHook = ''
-            echo "AlexNet PyTorch Development Environment"
-            echo "Python: $(python --version)"
-            echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
-            echo ""
-            echo "Available directories:"
-            echo "  - model/     : Neural network architecture"
-            echo "  - data/      : Dataset storage"
-            echo "  - results/   : Training results"
-            echo "  - metrics/   : Performance metrics"
-            echo ""
+            echo "Setting up Python environment..."
             
-            # Set Python path to include current directory
-            export PYTHONPATH="$PWD:$PYTHONPATH"
+            # Create venv if it doesn't exist
+            if [ ! -d .venv ]; then
+              python -m venv .venv
+              source .venv/bin/activate
+              pip install --upgrade pip
+              pip install -r requirements.txt
+            else
+              source .venv/bin/activate
+            fi
+            
+            echo "Python: $(python --version)"
+            echo "Ready to train!"
           '';
 
           # Environment variables
