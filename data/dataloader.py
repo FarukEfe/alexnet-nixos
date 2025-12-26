@@ -18,10 +18,27 @@ class CustomDataset(Dataset):
         """Returns one sample of data at given index"""
         return self.data[idx], self.labels[idx]
     
-def load_dummy_data(num_samples=1000, input_shape=(3, 224, 224), num_classes=1000, batch_size=32):
+def load_random_data(num_samples=1000, input_shape=(3, 224, 224), num_classes=1000, batch_size=32):
     """Generates dummy data for testing the DataLoader and Model"""
     data = np.random.randn(num_samples, *input_shape)
     labels = np.random.randint(0, num_classes, size=(num_samples,))
+
+    dataset = CustomDataset(data, labels)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    return dataloader
+
+def load_dummy_data(num_samples=1000, input_shape=(3, 224, 224), num_classes=1000, batch_size=32):
+    """Loads dummy data for testing the DataLoader and Model"""
+    data, labels = [], []
+    samples_per_label = num_samples // num_classes
+
+    for lid in range(num_classes):
+        for _ in range(samples_per_label):
+            sample = np.random.randn(*input_shape) * 0.1 # Noise
+            sample[lid % 3] += lid * 2.0  # Add distinctive pattern
+            data.append(sample)
+            labels.append(lid)
 
     dataset = CustomDataset(data, labels)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)

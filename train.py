@@ -1,8 +1,6 @@
 import torch
 from torch import nn
-from torchvision import datasets
-from torchvision.transforms import ToTensor
-from data.dataloader import load_dummy_data, load_imagenet_data
+from data.dataloader import load_random_data, load_dummy_data, load_imagenet_data
 
 from model.model import Model
 
@@ -42,7 +40,7 @@ def test(dataloader, model, loss_fn):
 
 if __name__ == "__main__":
     # HPs
-    learning_rate = 1e-3
+    learning_rate = 0.05
     batch_size = 16
     epochs = 3
     input_shape = (3, 224, 224)
@@ -55,7 +53,8 @@ if __name__ == "__main__":
     # Model, loss, optimizer
     model = Model(labels=num_labels)
     loss_fn = nn.NLLLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training Loop
     for epoch in range(epochs):
