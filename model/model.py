@@ -58,7 +58,7 @@ class ConvNet(nn.Module):
         
         if cuda.is_available() and cuda.device_count() >= 2:
             # CNN Split to 2 GPUs
-            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=0, pooling=True, lrn=True).to(device0)
+            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=2, pooling=True, lrn=True).to(device0)
             self.conv2d1 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(device0)
             self.conv2d2 = ConvLayer(48, 128, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True).to(device1)
             self.conv3d1 = ConvLayer(256, 192, kernel_size=3, stride=1, padding=1).to(device0)
@@ -69,7 +69,7 @@ class ConvNet(nn.Module):
             self.conv5d2 = ConvLayer(192, 128, kernel_size=3, stride=1, padding=1, pooling=True).to(device1)
         else:
             # CPU Architecture
-            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=0, pooling=True, lrn=True)
+            self.conv1 = ConvLayer(3, 96, kernel_size=11, stride=4, padding=2, pooling=True, lrn=True)
             self.conv2 = ConvLayer(96, 256, kernel_size=5, stride=1, padding=2, pooling=True, lrn=True)
             self.conv3 = ConvLayer(256, 384, kernel_size=3, stride=1, padding=1)
             self.conv4 = ConvLayer(384, 384, kernel_size=3, stride=1, padding=1)
@@ -124,7 +124,7 @@ class FFN(nn.Module):
             self.dropout2d2 = nn.Dropout(p=dropout_prob).to(device1)
             # Dense 3 and Softmax (on device0)
             self.fc3 = nn.Linear(hidden_size, output_size).to(device0)
-            self.softmax = nn.Softmax(dim=1).to(device0)
+            self.softmax = nn.LogSoftmax(dim=1).to(device0)
         else:
             # Dense 1
             self.fc1 = nn.Linear(input_size, hidden_size)
@@ -136,7 +136,7 @@ class FFN(nn.Module):
             self.dropout2 = nn.Dropout(p=dropout_prob)
             # Dense 3 and Softmax
             self.fc3 = nn.Linear(hidden_size, output_size)
-            self.softmax = nn.Softmax(dim=1)
+            self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         if hasattr(self, 'fc1d1') and hasattr(self, 'fc1d2'):
@@ -176,10 +176,10 @@ class FFN(nn.Module):
 
 class Model(nn.Module):
 
-    def __init__(self):
+    def __init__(self, labels=1000):
         super(Model, self).__init__()
         self.convnet = ConvNet()
-        self.ffn = FFN(input_size=256*6*6, hidden_size=4096, output_size=1000)
+        self.ffn = FFN(input_size=256*6*6, hidden_size=4096, output_size=labels)
 
     def forward(self, x):
         x = self.convnet(x)
@@ -192,6 +192,8 @@ class Model(nn.Module):
             x = (x0, x1)
         else:
             x = x.view(x.size(0), -1)
-
+            # print(x.shape)
+            # exit(1)
+        
         x = self.ffn(x)
         return x
