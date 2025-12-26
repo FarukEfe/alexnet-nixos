@@ -11,17 +11,15 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Python environment with all dependencies
+        # Python environment - PyTorch via pip, not Nix
         pythonEnv = pkgs.python311.withPackages (ps: with ps; [
           pip
           virtualenv
-          torch
-          torchvision
+          # Don't install torch/torchvision from Nix - use pip instead
           numpy
           matplotlib
           pillow
           tqdm
-          tensorboard
         ]);
       in
       {
@@ -61,8 +59,7 @@
           src = ./.;
           
           propagatedBuildInputs = with pkgs.python311Packages; [
-            torch
-            torchvision
+            # torch and torchvision installed via pip in venv
             numpy
             matplotlib
             pillow

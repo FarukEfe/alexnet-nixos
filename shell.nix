@@ -3,16 +3,15 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
-  # Python environment with all dependencies
+  # Python environment - PyTorch via pip, not Nix
   pythonEnv = pkgs.python311.withPackages (ps: with ps; [
-    torch
-    torchvision
+    pip
+    virtualenv
+    # Don't install torch/torchvision from Nix - use pip instead
     numpy
     matplotlib
     pillow
     tqdm
-    tensorboard
-    scikit-learn
   ]);
 in
 pkgs.mkShell {
@@ -25,12 +24,20 @@ pkgs.mkShell {
 
   shellHook = ''
     echo "AlexNet PyTorch Development Environment (shell.nix)"
-    echo "Python: $(python --version)"
-    echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
-    echo ""
+    echo "Setting up Python environment..."
     
-    # Set Python path to include current directory
-    export PYTHONPATH="$PWD:$PYTHONPATH"
+    # Create venv if it doesn't exist
+    if [ ! -d .venv ]; then
+      python -m venv .venv
+      source .venv/bin/activate
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    else
+      source .venv/bin/activate
+    fi
+    
+    echo "Python: $(python --version)"
+    echo "Ready to train!"
   '';
 
   LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
