@@ -191,3 +191,11 @@ nix develop -c env | grep -E "(PYTHON|PATH)"
 - [NixOS Manual](https://nixos.org/manual/nix/stable/)
 - [Nix Flakes Guide](https://nixos.wiki/wiki/Flakes)
 - [Python on Nix](https://nixos.wiki/wiki/Python)
+
+# About AlexNet
+
+For many reasons, AlexNet is an important paper to understand. The main reason being, up until this point, the size of image datasets models could train on without overfitting was relatively small. This paper was able to introduce some novel ideas that enabled training on larger datasets without overfit, which landed them 1st spot in the imagenet competition.
+
+Personal takeaways:
+- Going from larger convolutional kernels to smaller kernel sizes while increasing the output channel allows the extraction of local features while retaining information (downsampling doesn't lose knowledge).
+- Cross-GPU communication: probably something very basic, but this paper got me to practice how exactly that happens and what we mean by data being passed around across multiple GPUs.

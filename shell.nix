@@ -20,7 +20,7 @@ pkgs.mkShell {
     pythonEnv
     pkgs.git
     # Uncomment for GPU support:
-    pkgs.cudaPackages.cudatoolkit
+    # pkgs.cudaPackages.cudatoolkit
   ];
 
   shellHook = ''

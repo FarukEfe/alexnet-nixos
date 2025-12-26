@@ -29,7 +29,7 @@
           buildInputs = [
             pythonEnv
             pkgs.git
-            pkgs.cudaPackages.cudatoolkit  # Optional: for GPU support
+            # pkgs.cudaPackages.cudatoolkit  # Optional: for GPU support
           ];
 
           shellHook = ''
